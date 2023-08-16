@@ -1,5 +1,5 @@
 # AsyFOD
-The authors are fighting for the camera ready version of paper.
-Stay tuned for the code :)
+You can also check our previous work AcroFOD "https://github.com/Hlings/AcroFOD".
 
-You can also check our previous work AcroFOD in "https://github.com/Hlings/AcroFOD". 
+The codes have been released but need further construction.
+I will try my best to update :(.
