@@ -1,0 +1,51 @@
+# 新的改进v2
+
+#------------------------------------ C to F ------------------------------------#
+config: batch-size = 12! augmentation用mm1.yaml foggy 8_3 能够达到43.3的性能  注：bs12比16的效果要好很多 而且会更加的稳定 不知道8会不会更好
+
+cd /code/acrofodv2; python train_MMD.py --img 640 --batch 8 --epochs 600 --data ./data/city2foggy_8_3.yaml --cfg ./models/yolov5x.yaml --hyp ./data/hyp_aug/mm1.yaml --weights '' --project "/userhome/acrofod_run/train" --name "acrofodv2_c2f_bs8_mm1"
+
+
+
+#------------------------------------ S to C ------------------------------------#
+
+cd /code/acrofodv2; python train_MMD.py --img 640 --batch 32 --epochs 300 --data ./data/sim10k2citycar_8_1.yaml --cfg ./models/yolov5x.yaml --hyp ./data/hyp_aug/mm1.yaml --weights '' --project "/userhome/acrofod_run/train" --name "acrofodv2_s2c_bs32_mm1"
+
+cd /code/acrofodv2; python train_MMD.py --img 640 --batch 32 --epochs 300 --data ./data/sim10k2citycar_8_1.yaml --cfg ./models/yolov5x.yaml --hyp ./data/hyp_aug/mm3.yaml --weights '' --project "/userhome/acrofod_run/train" --name "acrofodv2_s2c_bs32_mm3"
+
+
+
+# 云脑1测试
+
+python train_MMD.py --img 640 --batch 8 --epochs 100 --data ./data/sim10k2citycar_8_2.yaml --cfg ./models/yolov5x.yaml --hyp ./data/hyp_aug/mm3.yaml --weights '' --name "test"
+
+
+!!!!!! debug下命令 任何版本都可以用这个:
+python train_MMD.py --img 640 --batch 4 --epochs 100 --data ./data/debug.yaml --cfg ./models/yolov5x.yaml --hyp ./data/hyp_aug/mm3.yaml --weights '' --name "debug_test"
+
+
+# ---------------------------- 8.26 ---------------------------------- #
+
+改进1： backbone之后加上分布的feature alignment模块 使用MMD loss （8.26完成）
+project name: acrofod-mmd
+
+改进2： backbone额外加一个模块然后加上feature alignment 使用MMD loss (8.26完成)
+project name: acrofod-branch-mmd
+
+改进3： 加上ranking模块 （8.26基本完成）
+
+# -------------------------- acrofod-mmd ------------------------------ #
+
+debug: cd /userhome/1_xin/yipeng/acrofodv2; python train_MMD.py --img 640 --batch 8 --epochs 100 --data ./data/sim10k2citycar_8_2.yaml --cfg ./models/yolov5x.yaml --hyp ./data/hyp_aug/mm3.yaml --weights '' --name "test"
+
+
+云脑1命令：
+
+S to C： cd /userhome/1_xin/yipeng/acrofodv2; python train_MMD.py --img 640 --batch 32 --epochs 300 --data ./data/sim10k2citycar_8_2.yaml --cfg ./models/yolov5x.yaml --hyp ./data/hyp_aug/mm3.yaml --weights '' --name "acrofod-mmd_s2c_bs32_mm3" !!! 这个其实就相当于baseline了 没有进行梯度更新
+
+真的更新mmd距离之后的命令
+cd /userhome/1_xin/yipeng/acrofodv2; python train_MMD.py --img 640 --batch 32 --epochs 300 --data ./data/sim10k2citycar_8_2.yaml --cfg ./models/yolov5x.yaml --hyp ./data/hyp_aug/mm3.yaml --weights '' --name "acrofod-mmd_s2c_bs32_mm3-no-detach"
+
+results: 
+
+# -------------------------- acrofod-branch-mmd -------------------------- #
