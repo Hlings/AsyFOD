@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import argparse # FileNotFoundError: file "/userhome/mmdetection/configs/a-voc-mini/faster_rcnn_r101_fpn_1x_viped_4gpu.py" does not exist
+import argparse
 import logging
 import os
 import random
@@ -28,7 +28,7 @@ from models.experimental import attempt_load
 from models.yolo import Model
 
 
-from models.yolo_feature import Model_feature  # 为了返回最后的特征 额外定义的特征
+from models.yolo_feature import Model_feature 
 from utils.MMD import get_feature, get_feature_train, MMD_distance, choice_topk
 from torch.backends import cudnn
 from utils.autoanchor import check_anchors
@@ -51,8 +51,8 @@ except ImportError:
     logger.info("Install Weights & Biases for experiment logging via 'pip install wandb' (recommended)")
 
 
-def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据集加载的yaml文件信息
-    logger.info(f'Hyperparameters {hyp}')   #在DDP模式下 batch_size 为每一张卡分到的batch数目 total_batch_size 是设置的总batch的数目
+def train(hyp, opt, device, tb_writer=None, wandb=None):  
+    logger.info(f'Hyperparameters {hyp}')   
     save_dir, epochs, batch_size, total_batch_size, weights, rank = \
         Path(opt.save_dir), opt.epochs, opt.batch_size, opt.total_batch_size, opt.weights, opt.global_rank
 
@@ -72,14 +72,14 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据�
     # Configure
     plots = not opt.evolve  # create plots
     cuda = device.type != 'cpu'
-    init_seeds(2 + rank)  # 每台机器的随机种子设置为不同
+    init_seeds(2 + rank) 
     with open(opt.data) as f:
         data_dict = yaml.load(f, Loader=yaml.FullLoader)  # data dict
     with torch_distributed_zero_first(rank):
         check_dataset(data_dict)  # check
     
     # domain adaption path here
-    train_path = data_dict['train_source'] # train_path 为list 里面包含所有train_set的数据集
+    train_path = data_dict['train_source'] 
     train_target_path = data_dict['train_target']
     test_path = data_dict['val']
     
@@ -87,7 +87,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据�
     assert len(names) == nc, '%g names found for nc=%g dataset in %s' % (len(names), nc, opt.data)  # check
 
     # Model
-    pretrained = weights.endswith('.pt')   # 加载预训练模型 weights是按照路径加载的
+    pretrained = weights.endswith('.pt')   
     if pretrained:
         with torch_distributed_zero_first(rank):
             attempt_download(weights)  # download if not found locally
@@ -102,7 +102,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据�
         state_dict = ckpt['model'].float().state_dict()  # to FP32
         state_dict = intersect_dicts(state_dict, model.state_dict(), exclude=exclude)  # intersect
         
-        #model_feature.load_state_dict(state_dict, strict=False)  # 同步加载预训练的参数
+        #model_feature.load_state_dict(state_dict, strict=False)  
         model.load_state_dict(state_dict, strict=False)  # load para
         
 
@@ -200,19 +200,16 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据�
     if cuda and rank != -1:
         model = DDP(model, device_ids=[opt.local_rank], output_device=opt.local_rank)
 
-    # Trainloader !!!!!!!!!!!!  通过列表的train_path 构建dataloader
     # for 2 domains half the total_batch_size
     print("batchsize is ", batch_size)
     
-    # 确定是batchsize的问题  尝试采用一个新的dataloader来进行赋值
-    # 这里 batch_size变量 在DDP模式下 是每张显卡上面的batchsize个数
     bs_source = int(batch_size*0.98)   # source dataloader built by bs but choose topk for training
     # bs_target = math.ceil(batch_size*0.5) # bs_source + bs_target = batch_size
     #bs_target = math.ceil(batch_size*0.02)
     bs_target = 1
     bs_topk = int(bs_source*opt.k_por)
     bs_add = bs_source - bs_topk          # bs_source = bs_topk + bs_add
-    if bs_add > bs_topk:  # 这里当前的写法其实不好 先这样做50%的实验 之后需要完善这里 需要完善成重复选取的版本
+    if bs_add > bs_topk: 
         bs_add = bs_topk
     print("bs_target is", bs_target)
     print("bs_source is", bs_source)
@@ -233,7 +230,6 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据�
     nb = len(dataloader)  # number of batches
     assert mlc < nc, 'Label class %g exceeds nc=%g in %s. Possible class labels are 0-%g' % (mlc, nc, opt.data, nc - 1)
 
-    # Process 0  全局master节点时运行以下程序
     if rank in [-1, 0]:
         ema.updates = start_epoch * nb // accumulate  # set EMA updates
         testloader = create_dataloader(test_path, imgsz_test, total_batch_size, gs, opt,  # testloader
@@ -283,13 +279,13 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据�
         mloss = torch.zeros(5, device=device)  # mean losses | original 4 + added lkl
         # 原先是在这里设计的epoch
                       
-        pbar = list(enumerate(dataloader)) # pbar 最终整合了整个dataloader
-        pbar_target = list(enumerate(dataloader_target)) # 这里把少量的样本当成目标域吧        
+        pbar = list(enumerate(dataloader)) # pbar merge the whole dataloader
+        pbar_target = list(enumerate(dataloader_target))        
         
-        target_feature = torch.tensor([]).to(device) # 不确定要不要.to(device)
+        target_feature = torch.tensor([]).to(device)
         print("caculating target dataset mean discranpancy")
         imgs_t = torch.tensor([]).to(device)
-        for i, (imgs, targets, paths, space) in pbar_target: # 这里的imgs是torch.tensor  这段代码没有问题
+        for i, (imgs, targets, paths, space) in pbar_target: # 这里的imgs是torch.tensor 
             imgs_t_i = imgs.to(device, non_blocking=True).float() / 255.0
             # imgs_feature = model(imgs_t_i)[1].mean(3).mean(2) # imgs_feature [B, 1280]
             imgs_t = torch.cat((imgs_t, imgs_t_i))
@@ -307,9 +303,9 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据�
         for i, (imgs, targets, paths, _) in pbar: # pbar [(0, (2, 3)), (1, (2, 3))]
             
             pbar[i] = list(pbar[i])          # pbar [[0, (2, 3)], [1, (2, 3)]]
-            pbar[i][1] = list(pbar[i][1])    # pbar [[0, [2, 3]], [1, [2, 3]]]   到现在pbar可以改变
+            pbar[i][1] = list(pbar[i][1])    # pbar [[0, [2, 3]], [1, [2, 3]]]   The pbar can be changed
             
-            i_tar, (imgs_tar, targets_tar, paths_tar, _) = random.sample(list(pbar_target) ,1)[0]  # 选择一个batch的图片
+            i_tar, (imgs_tar, targets_tar, paths_tar, _) = random.sample(list(pbar_target) ,1)[0]  # choose a batch of images
                         
             imgs_tar_ = imgs_tar.clone()
             targets_tar_ = targets_tar.clone() # targets_tar 把几张图片的目标全部都结合到了一起 [N, 6] 所以需要进行根据索引的筛选
