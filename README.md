@@ -22,7 +22,7 @@ The links of the processed data (Yolo format) are as follows (in Baidu Desk):
 [coco_person](https://pan.baidu.com/s/1nwr7qVAFnXM3mK2b5Ywc9g?pwd=je89) Key: je89 (The COCO dataset includes only person class.)
 
 
-You can also process the raw data to Yolo format via the tools shown [here](https://github.com/Hlings/AsyFOD/tree/main/tool).
+You can also process the raw data to Yolo format via the tools shown [here](https://github.com/Hlings/AsyFOD/tree/main/utils/gaoyp-utils-yolov5-useless-for-model-training).
 
 ### Requirements
 This repo is based on [YOLOv5 repo](https://github.com/ultralytics/yolov5). Please follow that repo for installation and preparation.
