@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
-import argparse #解析命令行参数的库
-import json     #实现字典列表和JSON字符串之间的相互解析
-import os       #与操作系统进行交互的文件库 包含文件路径操作与解析
-from pathlib import Path  #Path能够更加方便得对字符串路径进行处理
-from threading import Thread #python中处理多线程的库
+import argparse
+import json    
+import os      
+from pathlib import Path  
+from threading import Thread
 
-import numpy as np    #矩阵计算基础库
-import torch          #pytorch 深度学习库
-import yaml           #yaml是一种表达高级结构的语言 易读 便于指定模型架构及运行配置
-from tqdm import tqdm #用于直观显示进度条的一个库 看起来很舒服
+import numpy as np
+import torch
+import yaml
+from tqdm import tqdm
 
-from models.experimental import attempt_load #调用models文件夹中的experimental.py文件中的attempt_load函数 目的是加载模型
-#以下调用均为utils文件夹中各种已写好的函数
+from models.experimental import attempt_load
 from utils.datasets import create_dataloader
 from utils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, box_iou, \
     non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, set_logging, increment_path
@@ -29,7 +28,6 @@ import random
 from utils.MMD import get_ins_feature
 
 def visual(feat):
-    # t-SNE的最终结果的降维与可视化
     ts = manifold.TSNE(n_components=2, init='pca', random_state=0)
     x_ts = ts.fit_transform(feat)
     print(x_ts.shape)  # [num, 2]
@@ -38,9 +36,9 @@ def visual(feat):
 
     return x_final
 
-# for polting eg:
+# for ploting eg:
 """
-feat = torch.rand(128, 1024)  # 128个特征，每个特征的维度为1024
+feat = torch.rand(128, 1024) 
 label_test1 = [0 for index in range(40)]
 label_test2 = [1 for index in range(40)]
 label_test3 = [2 for index in range(48)]
@@ -56,7 +54,7 @@ plotlabels(visual(feat), label_test, '(a)')
 """
 def plotlabels(S_lowDWeights, Trure_labels, name, cur_number, path_base):
     True_labels = Trure_labels.reshape((-1, 1))
-    S_data = np.hstack((S_lowDWeights, True_labels))  # 将降维后的特征与相应的标签拼接在一起
+    S_data = np.hstack((S_lowDWeights, True_labels))
     S_data = pd.DataFrame({'x': S_data[:, 0], 'y': S_data[:, 1], 'label': S_data[:, 2]})
     #print(S_data)
     print(S_data.shape)  # [num, 3]
@@ -69,19 +67,18 @@ def plotlabels(S_lowDWeights, Trure_labels, name, cur_number, path_base):
          'weight': 'bold',
          'size': 32,
          }
-    for index in range(3):  # 假设总共有三个类别，类别的表示为0,1,2
+    for index in range(3):
         X = S_data.loc[S_data['label'] == index]['x']
         Y = S_data.loc[S_data['label'] == index]['y']
         plt.scatter(X, Y, cmap='brg', s=50, marker=maker[0], c=colors[index], edgecolors=colors[index], alpha=1.0)
 
-        plt.xticks([])  # 去掉横坐标值
-        plt.yticks([])  # 去掉纵坐标值
+        plt.xticks([])
+        plt.yticks([])
 
     plt.title(name, fontsize=32, fontweight='normal', pad=20)
     path_base = path_base.replace("a1", str('r'+str(cur_number)))
     plt.savefig(path_base)
 
-#测试函数 输入为测试过程中需要的各种参数
 def test(data,
          weights=None,
          batch_size=32,
@@ -166,7 +163,7 @@ def test(data,
     #-------  extract source feature representation ----- #
     feature_source = torch.tensor([]).to(device)
     batch_index=random.sample(range(0, 1244),50)
-    for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader_source, desc=s)): # 对每一个batch推断
+    for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader_source, desc=s)):
         if batch_i not in batch_index:
             continue
         img = img.to(device, non_blocking=True)
