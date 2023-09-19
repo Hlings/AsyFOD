@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-import argparse #解析命令行参数的库
-import json     #实现字典列表和JSON字符串之间的相互解析
-import os       #与操作系统进行交互的文件库 包含文件路径操作与解析
-from pathlib import Path  #Path能够更加方便得对字符串路径进行处理
+import argparse 
+import json     
+import os
+from pathlib import Path
 from threading import Thread #python中处理多线程的库
 
 import numpy as np    #矩阵计算基础库
