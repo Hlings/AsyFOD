@@ -1,16 +1,15 @@
-import argparse #解析命令行参数的库
-import json     #实现字典列表和JSON字符串之间的相互解析
-import os       #与操作系统进行交互的文件库 包含文件路径操作与解析
-from pathlib import Path  #Path能够更加方便得对字符串路径进行处理
-from threading import Thread #python中处理多线程的库
+import argparse
+import json
+import os
+from pathlib import Path
+from threading import Thread
 
-import numpy as np    #矩阵计算基础库
-import torch          #pytorch 深度学习库
-import yaml           #yaml是一种表达高级结构的语言 易读 便于指定模型架构及运行配置
-from tqdm import tqdm #用于直观显示进度条的一个库 看起来很舒服
+import numpy as np 
+import torch
+import yaml
+from tqdm import tqdm
 
-from models.experimental import attempt_load #调用models文件夹中的experimental.py文件中的attempt_load函数 目的是加载模型
-#以下调用均为utils文件夹中各种已写好的函数
+from models.experimental import attempt_load
 from utils.datasets import create_dataloader
 from utils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, box_iou, \
     non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, set_logging, increment_path
@@ -19,7 +18,6 @@ from utils.metrics import ap_per_class, ConfusionMatrix
 from utils.plots import plot_images, output_to_target, plot_study_txt
 from utils.torch_utils import select_device, time_synchronized
 
-#测试函数 输入为测试过程中需要的各种参数
 def test(data,
          weights=None,
          batch_size=32,
@@ -99,7 +97,7 @@ def test(data,
     loss = torch.zeros(3, device=device)
     jdict, stats, ap, ap_class, wandb_images = [], [], [], [], []
     
-    for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)): # 对每一个batch推断
+    for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -228,17 +226,17 @@ def test(data,
         nt = torch.zeros(1)
         
     
-    # Print results  这一步输出对应的
-    file_output = open('/userhome/mini_result.txt','a') #这里是后加的 方便多个程序测试的代码
-    pf = '%20s' + '%12.3g' * 6  # print format
-    pf_str = pf % ('all', seen, nt.sum(), mp, mr, map50, map)
+    # Print results (ignore these codes, I initially design these for results recording)
+    # file_output = open('/userhome/mini_result.txt','a')
+    # pf = '%20s' + '%12.3g' * 6  # print format
+    # pf_str = pf % ('all', seen, nt.sum(), mp, mr, map50, map)
     #file_output.write(mark_result)
     #file_output.write('\n')
     #file_output.write(pf_str)
     #file_output.write('\n')
     #file_output.close()
     #print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
-    print(pf_str)
+    #print(pf_str)
     
     
     # Print results per class
