@@ -308,16 +308,16 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
             i_tar, (imgs_tar, targets_tar, paths_tar, _) = random.sample(list(pbar_target) ,1)[0]  # choose a batch of images
                         
             imgs_tar_ = imgs_tar.clone()
-            targets_tar_ = targets_tar.clone() # targets_tar 把几张图片的目标全部都结合到了一起 [N, 6] 所以需要进行根据索引的筛选
+            targets_tar_ = targets_tar.clone() # [N, 6] targets_tar merge the images
             
             # imgs_feature [bs, 1280]
             # imgs_feature = model(imgs.to(device, non_blocking=True).float() / 255.0)[1].detach().mean(3).mean(2)
             # imgs_topk_index = MMD_distance(target_feature_mean, imgs_feature, bs_topk)
             
-            # if bs_add <= len(paths):  # 增加对最后一个迭代的判断
+            # if bs_add <= len(paths): 
             #    imgs_add_index = torch.arange(0, bs_add)
             # else:
-            #    imgs_add_index = torch.arange(0, len(paths)) # 如果bs_add 大于 paths中有的元素个数 则全部复制paths中的样本
+            #    imgs_add_index = torch.arange(0, len(paths)) # directly paste the sampels from the paths
             
             # imgs, targets, paths = choice_topk(imgs, targets, paths, imgs_topk_index.cpu())
             # imgs_add, targets_add, paths_add = choice_topk(imgs, targets, paths, imgs_add_index)
@@ -337,10 +337,9 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
             
             # for evert bath the last one is from target domain for supervised learning
             # in the alinment, the last one is 
-            pbar[i][1][0] = imgs    # 对pbar进行覆盖
+            pbar[i][1][0] = imgs   
             pbar[i][1][1] = targets
             pbar[i][1][2] = paths
-            # now 数据的顺序
         print("merging end")
         
         model.train()
@@ -379,9 +378,9 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
                     
             # Forward target samples
             # now updating source and target samples everytime
-            # 添加下面这段代码会导致 label分配到图片出现问题
+            # Be careful of the below codes:
             #feature_t = torch.tensor([]).to(device)
-            #for i, (imgs_t, targets, paths, space) in pbar_target: # 这里的imgs是torch.tensor  这段代码没有问题
+            #for i, (imgs_t, targets, paths, space) in pbar_target:
             #    feature_t_i = model(imgs_t.to(device, non_blocking=True).float() / 255.0)[1].mean(3).mean(2) # imgs_feature [B, 1280]
             #    feature_t = torch.cat((feature_t, feature_t_i))
             #feature_t = model(imgs_t_)[1].mean(3).mean(2)
