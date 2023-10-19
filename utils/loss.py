@@ -173,7 +173,7 @@ def compute_loss(p, targets, model, feature_s=None, feature_t=None):  # predicti
     lmmd = torch.tensor([0.00]).to(device)
     # now needing feaure type as [B, 1280]
     if feature_s is not None:
-        #s_spatial_mean = feature_s.mean(3).mean(2) # [B, 1280]
+        feature_s = feature_s.mean(3).mean(2) # [B, 1280]
         # if s_spatial_mean.shape[0] > 2:
         #    # strictly analyze the effect of target samples
         #    s_spatial_mean = s_spatial_mean[0 : s_spatial_mean.shape[0]-1]
