@@ -118,7 +118,6 @@ def guassian_kernel(source, target, kernel_mul=2.0, kernel_num=5, fix_sigma=None
                                        int(total.size(1)))
     L2_distance = ((total0-total1)**2).sum(2) # 计算高斯核中的|x-y|
 
-    # 计算多核中每个核的bandwidth
     if fix_sigma:
         bandwidth = fix_sigma
     else:
@@ -174,7 +173,7 @@ def compute_loss(p, targets, model, feature_s=None, feature_t=None):  # predicti
     lmmd = torch.tensor([0.00]).to(device)
     # now needing feaure type as [B, 1280]
     if feature_s is not None:
-        #s_spatial_mean = feature_s #.mean(3).mean(2) # [B, 1280]
+        #s_spatial_mean = feature_s.mean(3).mean(2) # [B, 1280]
         # if s_spatial_mean.shape[0] > 2:
         #    # strictly analyze the effect of target samples
         #    s_spatial_mean = s_spatial_mean[0 : s_spatial_mean.shape[0]-1]
