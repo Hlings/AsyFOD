@@ -299,7 +299,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
         torch.cuda.empty_cache()
         # print(target_feature_mean.shape)
         
-        print("merging dataloader to pbar") # 对pbar迭代 batch in pbar
+        print("merging dataloader to pbar") # batch in pbar
         for i, (imgs, targets, paths, _) in pbar: # pbar [(0, (2, 3)), (1, (2, 3))]
             
             pbar[i] = list(pbar[i])          # pbar [[0, (2, 3)], [1, (2, 3)]]
@@ -530,7 +530,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
 # opt.cross_domain_cp
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='', help='initial weights path') #修改默认为从头开始训练
+    parser.add_argument('--weights', type=str, default='', help='initial weights path')
     parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
     parser.add_argument('--data', type=str, default='data/coco128.yaml', help='data.yaml path')
     parser.add_argument('--hyp', type=str, default='data/hyp.scratch.yaml', help='hyperparameters path')    
