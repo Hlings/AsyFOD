@@ -393,7 +393,19 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
                 # pred: detection preds backbone_feature: [B, 1280, H, W] H = W = 20 for size 640
                 pred, feature_s = model(imgs)
                 #print("shape of backbone_feature is ", backbone_feature.shape)
-                loss, loss_items = compute_loss(pred, targets.to(device), model, feature_s, feature_t)  # loss scaled by batch_size
+
+                # Note the input shape of feature_s needs to be [B, 1280]
+                if feature_s.shape[0] >= 2:  
+                    k = int(feature_s.shape[0]*opt.k_por) # 0.5 is the ratio for interested tar_sim
+                    tar_sim_idx = MMD_distance(feature_t, feature_s, k)
+                    tar_dissim_idx = [i for i in range(feature_s.shape[0]) if i not in tar_sim_idx]
+                    tar_sim = feature_s[tar_sim_idx, :]
+                    tar_dissim = feature_s[tar_dissim_idx, :]
+                else:
+                    tar_sim = feature_s.clone()
+                    tar_dissim = feature_s.clone()
+                feature_t = torch.cat((feature_t, tar_sim))
+                loss, loss_items = compute_loss(pred, targets.to(device), model, tar_dissim, feature_t)  # loss scaled by batch_size
                 if rank != -1:
                     loss *= opt.world_size  # gradient averaged between devices in DDP mode
 
