@@ -280,7 +280,6 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据�
         # dataset.mosaic_border = [b - imgsz, -b]  # height, width borders
         model.eval()
         mloss = torch.zeros(5, device=device)  # mean losses | original 4 + added lkl
-        # 原先是在这里设计的epoch
                       
         pbar = list(enumerate(dataloader)) # pbar 最终整合了整个dataloader
         pbar_target = list(enumerate(dataloader_target)) # 这里把少量的样本当成目标域吧        
@@ -387,10 +386,10 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据�
             
             # Forward
             with amp.autocast(enabled=cuda):
-                # pred: detection preds backbone_feature: [B, 1280, H, W] H = W = 20 for size 640
+                # pred: detection preds 
+                # feature_s: [B, 1280, H, W] H = W = 20 for size 640 from backbone_feature
                 pred, feature_s = model(imgs)
-                #print("shape of backbone_feature is ", backbone_feature.shape)
-                loss, loss_items = compute_loss(pred, targets.to(device), model, feature_s, feature_t)  # loss scaled by batch_size
+                loss, loss_items = compute_loss(pred, targets.to(device), model, feature_s.mean(3).mean(2), feature_t)  # loss scaled by batch_size
                 if rank != -1:
                     loss *= opt.world_size  # gradient averaged between devices in DDP mode
 
