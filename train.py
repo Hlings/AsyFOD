@@ -44,9 +44,6 @@ from utils.torch_utils import ModelEMA, select_device, intersect_dicts, torch_di
 from utils.copy_paste_da import copy_paste_api
 logger = logging.getLogger(__name__)
 
-# for instance-level feature extraction
-from utils.MMD import get_ins_feature
-
 try:
     import wandb
 except ImportError:
@@ -209,18 +206,17 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据�
     
     # 确定是batchsize的问题  尝试采用一个新的dataloader来进行赋值
     # 这里 batch_size变量 在DDP模式下 是每张显卡上面的batchsize个数
-    bs_source = 32   # source dataloader built by bs but choose topk for training
-    # bs_target = math.ceil(batch_size*0.5) # bs_source + bs_target = batch_size
-    #bs_target = math.ceil(batch_size*0.02)
-    bs_target = 8
-    #bs_topk = int(bs_source*opt.k_por)
-    #bs_add = bs_source - bs_topk          # bs_source = bs_topk + bs_add
-    #if bs_add > bs_topk:  # 这里当前的写法其实不好 先这样做50%的实验 之后需要完善这里 需要完善成重复选取的版本
-    #    bs_add = bs_topk
-    #print("bs_target is", bs_target)
-    #print("bs_source is", bs_source)
-    #print("bs_topk is ", bs_topk)
-    #print("bs_add is ", bs_add)
+    bs_source = int(batch_size*0.98)   # source dataloader built by bs but choose topk for training
+    #bs_target = math.ceil(batch_size*0.5) # bs_source + bs_target = batch_size
+    bs_target = math.ceil(batch_size*0.02)
+    bs_topk = int(bs_source*opt.k_por)
+    bs_add = bs_source - bs_topk          # bs_source = bs_topk + bs_add
+    if bs_add > bs_topk:  # 这里当前的写法其实不好 先这样做50%的实验 之后需要完善这里 需要完善成重复选取的版本
+        bs_add = bs_topk
+    print("bs_target is", bs_target)
+    print("bs_source is", bs_source)
+    print("bs_topk is ", bs_topk)
+    print("bs_add is ", bs_add)
     
     dataloader, dataset = create_dataloader(train_path, imgsz, bs_source, gs, opt,
                                             hyp=hyp, augment=True, cache=opt.cache_images, rect=opt.rect, rank=rank,
@@ -290,20 +286,61 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据�
         pbar_target = list(enumerate(dataloader_target)) # 这里把少量的样本当成目标域吧        
         
         target_feature = torch.tensor([]).to(device) # 不确定要不要.to(device)
-        
+        print("caculating target dataset mean discranpancy")
         imgs_t = torch.tensor([]).to(device)
-        targets_t = torch.tensor([])
-        for i, (imgs, targets, paths, space) in pbar_target:
+        for i, (imgs, targets, paths, space) in pbar_target: # 这里的imgs是torch.tensor  这段代码没有问题
             imgs_t_i = imgs.to(device, non_blocking=True).float() / 255.0
+            imgs_feature = model(imgs_t_i)[1].detach().mean(3).mean(2) # imgs_feature [B, 1280]
             imgs_t = torch.cat((imgs_t, imgs_t_i))
-            targets_t = torch.cat((targets_t, targets))
-            # target_feature = torch.cat((target_feature, imgs_feature))
-            
-        # get the whole target images
-        targets_t_ = targets_t.clone()
+            target_feature = torch.cat((target_feature, imgs_feature))
         imgs_t_ = imgs_t.clone()
+        feature_t = target_feature.clone() # detach
+        # target_feature_mean = [8, 1280] target_feature.requires_grid = True
+        target_feature_mean = target_feature 
         torch.cuda.empty_cache()
-        # print(target_feature_mean.shape)
+        print(target_feature_mean.shape)
+        
+        print("merging dataloader to pbar") # 对pbar迭代 batch in pbar
+        for i, (imgs, targets, paths, _) in pbar: # pbar [(0, (2, 3)), (1, (2, 3))]
+            
+            pbar[i] = list(pbar[i])          # pbar [[0, (2, 3)], [1, (2, 3)]]
+            pbar[i][1] = list(pbar[i][1])    # pbar [[0, [2, 3]], [1, [2, 3]]]   到现在pbar可以改变
+            
+            i_tar, (imgs_tar, targets_tar, paths_tar, _) = random.sample(list(pbar_target) ,1)[0]  # 选择一个batch的图片
+                        
+            imgs_tar_ = imgs_tar.clone()
+            targets_tar_ = targets_tar.clone() # targets_tar 把几张图片的目标全部都结合到了一起 [N, 6] 所以需要进行根据索引的筛选
+            
+            # imgs_feature [bs, 1280]
+            imgs_feature = model(imgs.to(device, non_blocking=True).float() / 255.0)[1].detach().mean(3).mean(2)
+            imgs_topk_index = MMD_distance(target_feature_mean, imgs_feature, bs_topk)
+            
+            if bs_add <= len(paths):  # 增加对最后一个迭代的判断
+                imgs_add_index = torch.arange(0, bs_add)
+            else:
+                imgs_add_index = torch.arange(0, len(paths)) # 如果bs_add 大于 paths中有的元素个数 则全部复制paths中的样本
+            
+            imgs, targets, paths = choice_topk(imgs, targets, paths, imgs_topk_index.cpu())
+            imgs_add, targets_add, paths_add = choice_topk(imgs, targets, paths, imgs_add_index)
+                        
+            #if opt.cross_domain_cp:
+            #    imgs, imgs_tar_, targets, targets_tar_ = copy_paste_api(imgs, imgs_tar_, targets, targets_tar_) 
+            
+            targets_tar_[:, 0] = targets_tar_[:, 0] + imgs.shape[0]
+            targets_add[:, 0]  = targets_add[:, 0]  + imgs.shape[0] + imgs_tar_.shape[0]
+                        
+            imgs = torch.cat((imgs, imgs_tar_, imgs_add), 0) # refine
+            targets = torch.cat((targets, targets_tar_, targets_add), 0) #refine
+            paths = paths + paths_tar + paths_add # refine
+            
+            #print("imgs shape is", imgs.shape)
+            #print("targets max is", max(targets[:,0]))
+            #print("paths len is", len(paths))
+            
+            pbar[i][1][0] = imgs    # 对pbar进行覆盖
+            pbar[i][1][1] = targets
+            pbar[i][1][2] = paths
+        print("merging end")
         
         model.train()
         
@@ -338,31 +375,22 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):  # opt.data 是数据�
                 if sf != 1:
                     ns = [math.ceil(x * sf / gs) * gs for x in imgs.shape[2:]]  # new shape (stretched to gs-multiple)
                     imgs = F.interpolate(imgs, size=ns, mode='bilinear', align_corners=False)
-            
-            # This line for updating target feature by iteration
-            feature_img_t = model(imgs_t_)[1].detach()
-            feature_t = feature_img_t.mean(3).mean(2)
+                    
+            # Forward target samples
+            # now updating source and target samples everytime
+            # 添加下面这段代码会导致 label分配到图片出现问题
+            #feature_t = torch.tensor([]).to(device)
+            #for i, (imgs_t, targets, paths, space) in pbar_target: # 这里的imgs是torch.tensor  这段代码没有问题
+            #    feature_t_i = model(imgs_t.to(device, non_blocking=True).float() / 255.0)[1].mean(3).mean(2) # imgs_feature [B, 1280]
+            #    feature_t = torch.cat((feature_t, feature_t_i))
+            #feature_t = model(imgs_t_)[1].mean(3).mean(2)
             
             # Forward
             with amp.autocast(enabled=cuda):
                 # pred: detection preds backbone_feature: [B, 1280, H, W] H = W = 20 for size 640
-                pred, feature_img_s = model(imgs)
-                
-                #if targets.shape[0] > 0:
-                #    feature_s = get_ins_feature(feature_img_s, targets, device, number=300).to(device)
-                #else:
-                # replace ins-level to img-level for complementing the representation
-                feature_s = feature_img_s.mean(3).mean(2)
-                if feature_s.shape[0] >= 2:  
-                    k = int(feature_s.shape[0]*opt.k_por) # 0.5 is the ratio for interested tar_sim
-                    tar_sim_idx = MMD_distance(feature_t, feature_s, k)
-                    tar_dissim_idx = [i for i in range(feature_s.shape[0]) if i not in tar_sim_idx]
-                    tar_sim = feature_s[tar_sim_idx, :]
-                    tar_dissim = feature_s[tar_dissim_idx, :]
-                else:
-                    tar_sim = feature_s.clone()
-                    tar_dissim = feature_s.clone()
-                loss, loss_items = compute_loss(pred, targets.to(device), model, tar_dissim, tar_sim.detach())  # loss scaled by batch_size
+                pred, feature_s = model(imgs)
+                #print("shape of backbone_feature is ", backbone_feature.shape)
+                loss, loss_items = compute_loss(pred, targets.to(device), model, feature_s, feature_t)  # loss scaled by batch_size
                 if rank != -1:
                     loss *= opt.world_size  # gradient averaged between devices in DDP mode
 
