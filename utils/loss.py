@@ -5,6 +5,8 @@ import torch.nn as nn
 
 from utils.general import bbox_iou
 from utils.torch_utils import is_parallel
+# for task-oriented supervised training
+from utils.MMD import MMD_weight
 
 
 def smooth_BCE(eps=0.1):  # https://github.com/ultralytics/yolov3/issues/238#issuecomment-598028441
@@ -151,6 +153,7 @@ def mmd(source, target, kernel_mul=2.0, kernel_num=5, fix_sigma=None):
     loss = (XX + XY).sum() + (YX + YY).sum() # torch.tensor([loss])
     return torch.tensor([loss])
 
+# feature_s[B, C], feature_t: [B, C]
 def compute_loss(p, targets, model, feature_s=None, feature_t=None):  # predictions, targets, model, feature of source batch, feature of target batch
     device = targets.device
     lcls, lbox, lobj = torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device)
@@ -171,7 +174,7 @@ def compute_loss(p, targets, model, feature_s=None, feature_t=None):  # predicti
     
     # feature alignment or ranking loss
     lmmd = torch.tensor([0.00]).to(device)
-    # now needing feaure type as [B, 1280]
+    # now needing feature type as [B, 1280]
     if feature_s is not None:
         # feature_s = feature_s.mean(3).mean(2) # [B, 1280]
         # if s_spatial_mean.shape[0] > 2:
@@ -179,6 +182,10 @@ def compute_loss(p, targets, model, feature_s=None, feature_t=None):  # predicti
         #    s_spatial_mean = s_spatial_mean[0 : s_spatial_mean.shape[0]-1]
         # t_spatial_mean = feature_t
         lmmd = mmd(feature_s, feature_t).to(device)
+        # weight_image [B, 1, 1, 1]
+        weight = MMD_weight(feature_s.detach(), feature_t.detach(), k).to(device)
+        image_number_norm = (weight.shape[0] / weight.sum()).to(device) # norm to full batchsize
+        weight_image = weight.unsqueeze(1).unsqueeze(2).unsqueeze(3).to(device)
         #print("the loss of mmd is", lmmd)
     
     # Losses
@@ -190,15 +197,32 @@ def compute_loss(p, targets, model, feature_s=None, feature_t=None):  # predicti
         tobj = torch.zeros_like(pi[..., 0], device=device)  # target obj
 
         n = b.shape[0]  # number of targets
+        # print("now analyzing the shape of prediction")
+        # print("index i is", i, "shape of p is", pi.shape)
+        # i (from 0, 1, 2) corresponds to three stages in the detector 
+        # p [B, 3, 80, 80, 6] [B, 3, 40, 40, 6] [B, 3, 20, 20, 6]
+        weight_targets = (torch.zeros(n) + 1.0).to(device)
+        
         if n:
+            targets_number_norm = 1.0
+            if feature_s is not None:
+                weight_targets = torch.index_select(weight, 0, b).to(device)
+                targets_number_norm = (n/weight_targets.sum()).to(device)
+                
             nt += n  # cumulative targets
+            # print("shape of b", b.shape, "shape of a", a.shape, "shape of gj", gj.shape, "shape of gi", gi.shape)
+            # torch.Size([138]) torch.Size([138]) torch.Size([138]) torch.Size([138])
             ps = pi[b, a, gj, gi]  # prediction subset corresponding to targets
+            # print("shape of ps is", ps.shape) ps[n, 6] 6: x, y, w, h, cls, conf
 
             # Regression
             pxy = ps[:, :2].sigmoid() * 2. - 0.5
             pwh = (ps[:, 2:4].sigmoid() * 2) ** 2 * anchors[i]
             pbox = torch.cat((pxy, pwh), 1).to(device)  # predicted box
             iou = bbox_iou(pbox.T, tbox[i], x1y1x2y2=False, CIoU=True)  # iou(prediction, target)
+            # print("the shape of iou is", iou.shape) # every single value in "iou" corresponds to the index in "b" torch.Size([138])
+            #print("before weighting the iou loss is ", ((1.0 - iou)).mean())
+            #print("after weighting the iou loss is  ", ((1.0 - iou)*weight_targets).mean()*targets_number_norm)
             lbox += (1.0 - iou).mean()  # iou loss
 
             # Objectness
@@ -213,8 +237,12 @@ def compute_loss(p, targets, model, feature_s=None, feature_t=None):  # predicti
             # Append targets to text file
             # with open('targets.txt', 'a') as file:
             #     [file.write('%11.5g ' * 4 % tuple(x) + '\n') for x in torch.cat((txy[i], twh[i]), 1)]
-
-        lobj += BCEobj(pi[..., 4], tobj) * balance[i]  # obj loss
+        #print("shape of pi [..., 4] is", pi[..., 4].shape, "shape of tobj is", tobj.shape)
+        #print("the shape of BCEobj is", BCEobj(pi[..., 4], tobj).shape)
+        #print("before weighting the obj loss is:", BCEobj(pi[..., 4], tobj).mean() * balance[i])
+        #print("after  weighting the obj loss is:", (BCEobj(pi[..., 4], tobj)*weight_image).mean() * balance[i] * image_number_norm)
+        lobj += (BCEobj(pi[..., 4], tobj)*weight_image).mean() * balance[i] * image_number_norm  # obj loss
+        # lobj += BCEobj(pi[..., 4], tobj) * balance[i]  # obj loss
 
     s = 3 / no  # output count scaling
     lbox *= h['box'] * s
