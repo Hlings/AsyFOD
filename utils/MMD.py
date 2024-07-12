@@ -72,6 +72,25 @@ def get_feature_train(img, model):
     img_feature = img_feature.mean(3).mean(2)
     return img_feature  # torch.tensor [B, 1280] feature
 
+# To get the weight for source and target samples in task-oriented supervised trainng
+def MMD_weight(feature_s, feature_t, k): # S: [B1 1280] T: [B2 1280] 
+    feature_s = feature_s - feature_t.mean(0) # boardcast
+    feature_s = feature_s.mul(feature_s) # multiply by every position
+
+    feature_s = feature_s.sum(dim=1)
+    
+    if feature_s.shape[0] > k:
+        topk_index = feature_s.topk(k=k, largest = False)[1]
+    else: 
+        topk_index = torch.arange(0, feature_s.shape[0])
+    
+    batch_size = feature_s.shape[0]
+    weight_ini = torch.zeros(batch_size)
+    weight_ini[topk_index] = 1.0
+    weight = weight_ini.clone()
+    
+    return weight # return sample's weight defined by MMD distance
+
 def MMD_distance(f_S, f_T, k): # S: [B1 1280] T: [B2 1280] 这里的f_T其实代表源域特征 返回源域当中的topk个
     f_T = f_T - f_S.mean(0) # 广播 每行都会减小
     f_T = f_T.mul(f_T) #对位相乘
