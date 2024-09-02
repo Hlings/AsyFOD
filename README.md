@@ -19,7 +19,7 @@ Note: All the files in the "backup" folder are unrelated to the training process
 python train.py --img 640 --batch 12 --epochs 300 --data ./data/city_and_foggy8_3.yaml --cfg ./models/yolov5x.yaml --hyp ./data/hyp_aug/mm1.yaml --weights '' --name "test"
 ```
 
-The codes have been released but need further construction. If you are intersted in more details of the ablation studies, you can refer to the folder "train_files_for_abl". I have listed nearly every train.py in this folder. I hope you find them helpful.
+The codes have been released but need further construction. If you are interested in more details of the ablation studies, you can refer to the folder "train_files_for_abl". I have listed nearly every train.py in this folder. I hope you find them helpful.
 
 I will try my best to update :(. You can also check our previous work AcroFOD "https://github.com/Hlings/AcroFOD".
 
