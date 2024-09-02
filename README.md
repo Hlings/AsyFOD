@@ -1,7 +1,7 @@
 # (CVPR2023) AsyFOD
 
 ### Data Preparation
-
+Please follow the instructions shown in [Dataset-Preparation](https://github.com/Hlings/AsyFOD/blob/main/Dataset-Preparation.md).
 
 ### Requirements
 This repo is based on [YOLOv5 repo](https://github.com/ultralytics/yolov5). Please follow that repo for installation and preparation.
