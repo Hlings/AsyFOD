@@ -1,4 +1,4 @@
-# (CVPR2023) AsyFOD
+# (CVPR2023) AsyFOD: An asymmetric adaptation paradigm for few-shot domain adaptive object detection
 
 ### Data Preparation
 Please follow the instructions shown in [Dataset-Preparation](https://github.com/Hlings/AsyFOD/blob/main/Dataset-Preparation.md).
