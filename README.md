@@ -37,6 +37,9 @@ This repo is based on [YOLOv5 repo](https://github.com/ultralytics/yolov5). Plea
 The version I built for this project is YOLO v5 3.0. The proposed methods can easily be migrated into advanced YOLO versions.
 
 ### Training
+
+Note: All the files in the "backup" folder are unrelated to the training process, but may be helpful for ablation studies and dataset construction.
+
 1. Modify the config of the data in the data subfolders. Please refer to the instructions in the yaml file.
 
 2. The command below can reproduce the corresponding results mentioned in the paper.
