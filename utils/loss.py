@@ -183,6 +183,7 @@ def compute_loss(p, targets, model, feature_s=None, feature_t=None):  # predicti
         # t_spatial_mean = feature_t
         lmmd = mmd(feature_s, feature_t).to(device)
         # weight_image [B, 1, 1, 1]
+        k = 0.8 # exactly as the same as the value used in the training loop
         weight = MMD_weight(feature_s.detach(), feature_t.detach(), k).to(device)
         image_number_norm = (weight.shape[0] / weight.sum()).to(device) # norm to full batchsize
         weight_image = weight.unsqueeze(1).unsqueeze(2).unsqueeze(3).to(device)
