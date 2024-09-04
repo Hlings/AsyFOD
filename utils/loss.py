@@ -188,6 +188,8 @@ def compute_loss(p, targets, model, feature_s=None, feature_t=None):  # predicti
         image_number_norm = (weight.shape[0] / weight.sum()).to(device) # norm to full batchsize
         weight_image = weight.unsqueeze(1).unsqueeze(2).unsqueeze(3).to(device)
         #print("the loss of mmd is", lmmd)
+    else:
+        weight_image = 
     
     # Losses
     nt = 0  # number of targets
