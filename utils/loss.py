@@ -189,7 +189,7 @@ def compute_loss(p, targets, model, feature_s=None, feature_t=None):  # predicti
         weight_image = weight.unsqueeze(1).unsqueeze(2).unsqueeze(3).to(device)
         #print("the loss of mmd is", lmmd)
     else:
-        weight_image = 
+        weight_image = 1.0
     
     # Losses
     nt = 0  # number of targets
