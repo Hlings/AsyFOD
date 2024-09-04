@@ -78,11 +78,12 @@ def MMD_weight(feature_s, feature_t, k): # S: [B1 1280] T: [B2 1280]
     feature_s = feature_s.mul(feature_s) # multiply by every position
 
     feature_s = feature_s.sum(dim=1)
-    
-    if feature_s.shape[0] > k:
-        topk_index = feature_s.topk(k=k, largest = False)[1]
-    else: 
-        topk_index = torch.arange(0, feature_s.shape[0])
+
+    topk_index = feature_s.topk(k=int(feature_s.shape[0]*k), largest = False)[1]
+    #if feature_s.shape[0] > k:
+    #    topk_index = feature_s.topk(k=k, largest = False)[1]
+    #else: 
+    #    topk_index = torch.arange(0, feature_s.shape[0])
     
     batch_size = feature_s.shape[0]
     weight_ini = torch.zeros(batch_size)
